@@ -130,3 +130,29 @@ test("필터 상태는 새로 고쳐도 유지된다 (B1)", async ({ page }) => 
   );
   await expect(page.getByTestId("explanation-stale")).toBeVisible();
 });
+
+test("보드가 다른 데이터 버전으로 다시 계산되면 위 버전 막대가 '원래 분석' 버전임을 밝힌다 (Phase 5)", async ({
+  page,
+}) => {
+  await openBoard(page);
+  const bar = page.getByRole("region", { name: "데이터 버전" });
+  await expect(bar).toContainText("데이터 버전");
+  await expect(bar.getByTestId("board-version")).toHaveCount(0);
+
+  // 같은 버전이면 그대로
+  await page.getByRole("button", { name: "최근 8분기" }).click();
+  await expect(page.getByRole("button", { name: "최근 8분기" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(bar.getByTestId("board-version")).toHaveCount(0);
+
+  // 새 데이터 버전으로 다시 계산 (서버 boardVersionFlag 흉내)
+  await page.evaluate(() => window.sessionStorage.setItem("sleepyheads.mock.boardNewVersion", "1"));
+  await page.getByRole("button", { name: "최근 3년" }).click();
+  await expect(bar).toContainText("원래 분석 데이터 버전");
+  await expect(bar.getByTestId("board-version")).toContainText("아래 보드 데이터 버전 b0a4d000");
+  await expect(bar.getByTestId("board-version-note")).toContainText("원래 분석 기준");
+  // 결과 쪽 분석 기준 바에도 서버가 붙인 한 줄
+  await expect(page.getByText(/보드 데이터 버전 b0a4d000 — 원래 분석/)).toBeVisible();
+});

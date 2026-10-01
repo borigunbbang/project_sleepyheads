@@ -10,16 +10,18 @@ import { rerunAnalysis } from "@/lib/api-client/versions";
 
 // [Phase 1 슬롯 — 담당: 데이터/서버(예림), WU-202] 결과 위: 데이터 버전·[같은 조건으로 재실행]·[최신 데이터로 다시 분석]
 // (Q6 rerun)과 "새 데이터 있음" 표시. 새 분석이 생기면 router로 그 분석 주소로 옮기고, 같은 분석이면 onChanged().
-// 이 파일은 예림님만 고친다. AnalysisScreen.tsx가 이미 이 자리에 붙여 두었으니 그 파일은 건드리지 않는다.
+// Phase 5(현준): 아래 보드가 다른 데이터 버전으로 다시 계산한 결과를 보여 주면, 이 막대가 원래 분석 기준임을 밝힌다.
 export interface VersionBarProps {
   analysis: Analysis;
   onChanged: () => void;
+  /** 아래 보드가 지금 보여 주는 결과의 데이터 버전 (BoardPanel이 알려 준다) */
+  boardVersionId?: string;
 }
 
 /** 재실행 뒤 새 분석 주소에 붙이는 표시 — 같은 조건 재실행의 숫자 비교 결과 */
 const SAME_PARAM = "same";
 
-export function VersionBar({ analysis }: VersionBarProps) {
+export function VersionBar({ analysis, boardVersionId }: VersionBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { applyRemaining } = useSession();
@@ -30,6 +32,8 @@ export function VersionBar({ analysis }: VersionBarProps) {
   if (!basis) return null;
 
   const sameParam = searchParams.get(SAME_PARAM);
+  // 보드 결과의 버전이 원래 분석과 다르면 (서버도 보드 결과 basis.flags 맨 앞에 "보드 데이터 버전 …"을 붙인다)
+  const boardDiffers = boardVersionId !== undefined && boardVersionId !== basis.dataVersionId;
 
   async function rerun(useLatestData: boolean) {
     setPending(useLatestData ? "latest" : "same");
@@ -58,11 +62,21 @@ export function VersionBar({ analysis }: VersionBarProps) {
     >
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <p>
-          <span className="text-xs text-muted">데이터 버전</span>{" "}
+          <span className="text-xs text-muted">
+            {boardDiffers ? "원래 분석 데이터 버전" : "데이터 버전"}
+          </span>{" "}
           <code className="font-mono font-medium" title={basis.dataVersionId}>
             {basis.dataVersionId.slice(0, 8)}
           </code>
         </p>
+        {boardDiffers && (
+          <p data-testid="board-version">
+            <span className="text-xs text-muted">아래 보드 데이터 버전</span>{" "}
+            <code className="font-mono font-medium" title={boardVersionId}>
+              {boardVersionId.slice(0, 8)}
+            </code>
+          </p>
+        )}
         {basis.newerDataVersionAvailable && (
           <p
             role="status"
@@ -103,6 +117,13 @@ export function VersionBar({ analysis }: VersionBarProps) {
           {pending === "latest" ? "새로 분석하는 중…" : "최신 데이터로 다시 분석"}
         </button>
       </div>
+      {boardDiffers && (
+        <p role="note" className="text-xs text-muted" data-testid="board-version-note">
+          아래 보드는 바꾼 조건으로 다른 데이터 버전에서 다시 계산한 결과입니다. 이 막대의 버튼은
+          보드 조건이 아니라 <strong className="font-medium text-ink">원래 분석 기준</strong>으로
+          동작합니다.
+        </p>
+      )}
       <p className="text-xs text-muted">
         같은 조건 재실행은 질문 수를 쓰지 않습니다. 최신 데이터로 다시 분석하면 질문 1회가 사용되고,
         이전 결과는 그대로 남습니다.

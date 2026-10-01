@@ -47,6 +47,10 @@ const BUSY_WAIT_MS = 1500;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** 실행 기록을 펼쳐 볼 수 있는(더 진행되지 않는) 상태 */
+const isFinished = (status: Analysis["status"]) =>
+  !["queued", "running", "awaiting_approval"].includes(status);
+
 /** /p/[projectId]?analysis=… — 분석 하나의 상태에 맞는 화면을 고른다 (API_SPEC §5, §6.1·6.2) */
 export function AnalysisScreen({ projectId }: { projectId: string }) {
   const router = useRouter();
@@ -159,14 +163,19 @@ export function AnalysisScreen({ projectId }: { projectId: string }) {
     }
   }
 
-  /** 계획 카드 [닫기]·실행 중 [취소] → Q8 (WU-301·302). 반복을 먼저 멈추고 서버에 알린다 */
+  /**
+   * 계획 카드 [닫기]·실행 중 [취소] → Q8 (WU-301·302). 반복을 먼저 멈추고 서버에 알린다.
+   * 취소가 받아들여지면 다시 불러오기를 기다리지 않고 곧바로 "취소한 분석"으로 바꾼다 — 다시 불러온 응답이
+   * 늦거나 이전 상태(계획 카드)로 오면 화면이 그대로 남던 일(Phase 4 운영, DB는 canceled) 때문
+   */
   async function cancel() {
     if (!analysisId) return;
     runToken.current += 1;
     setActionNotice(null);
     setRun((r) => (r ? { ...r, canceling: true } : r));
+    let canceled: Pick<Analysis, "status" | "stopReason"> | null = null;
     try {
-      await cancelAnalysis(analysisId);
+      ({ data: canceled } = await cancelAnalysis(analysisId));
     } catch (error) {
       // 그사이 끝났으면(409) 끝난 결과를 보여 준다
       if (!(error instanceof ApiRequestError && error.code === "INVALID_STATE")) {
@@ -174,7 +183,16 @@ export function AnalysisScreen({ projectId }: { projectId: string }) {
       }
     }
     setRun(null);
-    apply(await load(setRun));
+    if (canceled) {
+      const { status, stopReason } = canceled;
+      setState((s) =>
+        s.kind === "ready" ? { kind: "ready", analysis: { ...s.analysis, status, stopReason } } : s,
+      );
+    }
+    const next = await load(setRun);
+    // 취소를 마친 뒤 받은 응답이 아직 취소 전 상태(계획 카드·실행 중)면 취소 결과를 그대로 둔다
+    if (canceled && next?.kind === "ready" && !isFinished(next.analysis.status)) return;
+    apply(next);
   }
 
   return (
@@ -253,7 +271,13 @@ function AnalysisBody({
   onCancel: () => Promise<void>;
 }) {
   const status = describeStatus(analysis.status, analysis.stopReason);
-  const finished = !["queued", "running", "awaiting_approval"].includes(analysis.status);
+  const finished = isFinished(analysis.status);
+  // 보드가 지금 보여 주는 결과의 데이터 버전 (분석이 바뀌면 그 분석 것만 쓴다)
+  const [boardVersion, setBoardVersion] = useState<{ analysisId: string; id: string } | null>(null);
+  const onBoardVersion = useCallback(
+    (id: string) => setBoardVersion({ analysisId: analysis.id, id }),
+    [analysis.id],
+  );
 
   return (
     <article className="space-y-6">
@@ -295,7 +319,13 @@ function AnalysisBody({
           {(analysis.status === "succeeded" || analysis.status === "partial") &&
             analysis.result && (
               // Phase 1 슬롯 (WU-202, 예림) — 데이터 버전·재실행
-              <VersionBar analysis={analysis} onChanged={onChanged} />
+              <VersionBar
+                analysis={analysis}
+                onChanged={onChanged}
+                boardVersionId={
+                  boardVersion?.analysisId === analysis.id ? boardVersion.id : undefined
+                }
+              />
             )}
 
           {(analysis.status === "succeeded" || analysis.status === "partial") &&
@@ -308,6 +338,7 @@ function AnalysisBody({
                 explanation={analysis.explanation}
                 groupBy={analysis.request?.groupBy}
                 peers={analysis.request?.peers}
+                onDataVersion={onBoardVersion}
               />
             )}
 

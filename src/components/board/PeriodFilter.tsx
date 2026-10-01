@@ -23,7 +23,7 @@ export function presetPeriod(quarters: number, latest: Quarter): Period {
   return { from: addQuarters(latest, -(quarters - 1)), to: latest };
 }
 
-/** 2015Q1 ~ 최신 분기, 최근 것부터 (선택 목록용) */
+/** 조회 시작 분기(EARLIEST_QUARTER) ~ 최신 분기, 최근 것부터 (선택 목록용) */
 function quarterOptions(latest: Quarter): Quarter[] {
   const count = quarterSpan(EARLIEST_QUARTER, latest);
   return Array.from({ length: count }, (_, i) => addQuarters(latest, -i));

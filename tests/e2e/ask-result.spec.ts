@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { EXPLANATION_LIMITS } from "../../src/contracts/explanation";
+import { earliestQuarterLabel } from "../../src/components/ask/errorMessages";
 
 // WU-113(대기화면·결과 화면)·WU-114(남은 질문 수 표시) 완료조건. 가짜 모드(tests/fixtures/mock)로 돈다.
 
@@ -239,7 +240,9 @@ test.describe("거절·되묻기·오류 화면이 각각 구분된다", () => {
 
   test("조회 기간 밖: 가능한 범위 안내", async ({ page }) => {
     await ask(page, "삼성전자 2013년 매출 알려줘");
-    await expect(page.getByRole("main").getByRole("alert")).toContainText("2015년 1분기부터");
+    await expect(page.getByRole("main").getByRole("alert")).toContainText(
+      `${earliestQuarterLabel()}부터`,
+    );
   });
 
   test("AI 장애: 가짜 결과 없이 '지금은 분석할 수 없습니다', 질문 수 차감 없음", async ({

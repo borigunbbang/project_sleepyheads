@@ -1,5 +1,12 @@
 // 오류 코드별 화면 안내 (API_SPEC §1.7 "화면 처리" 열). 무엇이 잘못됐고 어떻게 하면 되는지를 쓴다.
 import { ApiRequestError } from "@/lib/api-client/errors";
+import { EARLIEST_QUARTER, parseQuarter } from "@/lib/ask/quarter";
+
+/** 조회 시작 분기 "2015년 1분기" — EARLIEST_QUARTER가 바뀌면(Phase 5 예림 결정) 안내도 같이 바뀐다 */
+export function earliestQuarterLabel(): string {
+  const { year, q } = parseQuarter(EARLIEST_QUARTER);
+  return `${year}년 ${q}분기`;
+}
 
 export interface ErrorNotice {
   title: string;
@@ -49,7 +56,7 @@ export function describeError(error: unknown): ErrorNotice {
     case "OUT_OF_RANGE":
       return {
         title: "조회할 수 없는 기간입니다",
-        body: "2015년 1분기부터 최신 보고서까지의 기간으로 다시 물어봐 주세요.",
+        body: `${earliestQuarterLabel()}부터 최신 보고서까지의 기간으로 다시 물어봐 주세요.`,
         charged: true,
         suggestions: ["삼성전자의 최근 5년 매출액 추이를 보여줘"],
       };
