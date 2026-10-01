@@ -777,6 +777,7 @@ interface Analysis {
 ### C3 `GET /api/cron/prefill-profiles` ⚙️ (Phase 4, 예림)
 - 하루 1회(C1 30분 뒤, `vercel.json`). **기업개황 미리 채우기**: 개황(시장·결산월·섹터)이 없는 상장사를 `corp_code` 순으로 하루 최대 **1,000곳** 채운다 — 입력창 자동완성(S1)은 개황이 있는 기업만 보여 준다(HANDOFF §0.4).
 - 전자공시 한도: 회원 soft limit(`dart_global_soft_limit`)의 **1/4에서 오늘 쓴 호출을 뺀 만큼만** 쓴다. 한도(`QuotaExceeded`)에 걸리면 더 부르지 않고 성공으로 끝난다(다음 날 이어서). 실패한 기업은 건너뛰고 센다.
+- (Phase 5) OpenDART가 개황을 주지 않은 기업(013 — 폐지 등)은 `companies.profile_failed_at`에 시각을 남기고 **7일 동안 건너뛴다**. 네트워크·키·DB 오류는 남기지 않는다(다음 실행에 다시). `remaining`은 건너뛰는 기업을 세지 않는다. 회원 질문의 기업개황 조회는 이 칸을 보지 않는다. 칸이 없으면(마이그레이션 전) 예전처럼 동작
 - 함수 최대 실행 시간: 300초 (240초가 지나면 새 기업을 시작하지 않는다)
 
 응답 `200` → `{ "data": { "filled": 1000, "failed": 2, "remaining": true, "stoppedBy": "batch", "budget": 3985 } }` (`stoppedBy`: `done` · `batch` · `quota` · `time`)

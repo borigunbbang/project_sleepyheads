@@ -6,7 +6,7 @@
 | 문서 종류 | TECH_SPEC (기술 명세) |
 | 작성자 | Sung, Hyun-Joon · Lee, Yelim · ByeongJun Min |
 | 작성일 | 2026-09-28 |
-| 버전 | v0.6.3 |
+| 버전 | v0.6.4 |
 | 기준 PRD | [PRD.md](./PRD.md) v0.6 |
 | 관련 문서 | [API_SPEC.md](./API_SPEC.md) v0.3.1 — 서버 API 상세 명세 |
 
@@ -23,6 +23,7 @@
 | v0.6 | 2026-09-29 | **뉴스 수집을 Google 뉴스 RSS로 교체**(§3.3, §10, 한도 §13, 환경변수에서 `NAVER_*` 삭제). **분석 글을 투자 인사이트로 전환**: `insights`(투자 포인트) 추가, 분량 상한·근거 연결 검사(§11.3~11.5). 주가 API 주소가 **V2**(`GetStockSecuritiesInfoService_V2/getStockPriceInfo_V2`)로 바뀐 것을 반영(§3.2), 상장주식수 필드 확인(T5) |
 | v0.6.1 | 2026-09-29 | (WU-101, 원래 PR #7의 v0.5.1) WU-101 DB 스키마 작성 중 발견: `max_declines_per_day`(회원별 상한, F-U8)를 판정할 컬럼이 없었음 — `decline_stats_daily`는 전체 집계만, `usage_daily`엔 회원별 거절 횟수 컬럼이 없었다. §15.1 `usage_daily`에 `declines` 컬럼 추가. PR #7 합치면서 외부 호출 기록 `provider`의 `naver`를 `news`(Google 뉴스 RSS)로 바꾸는 마이그레이션 추가 |
 | v0.6.2 | 2026-09-30 | WU-114: 한도 표(§13)에 `guest_requests_per_minute`(비로그인 IP당 분당 30) 추가, 분당 요청 제한을 DB에서 센다는 점 명시 |
+| v0.6.4 | 2026-10-01 | Phase 5(예림): **조회 시작 분기 2015Q1 → 2016Q1**(§4.3·§4.5 — OpenDART 재무 API에 2015년 1·반기·3분기보고서가 없다, 팀 결정), 종목별 주가 "받았지만 없음" 기록 `price_fetch_state`(§6.6·§15.4), 기업개황 미리 채우기가 개황을 못 받은 기업을 7일 건너뜀 `companies.profile_failed_at`(§15.3) |
 | v0.6.3 | 2026-09-30 | Step 1 점검 반영: 금융사 매출은 원문에 영업수익 합계가 없어 계산 불가로 표시(§7), T6 샘플 기업 확정, "최근 4개 분기" OpenDART 호출 수 실측(§13). OpenDART `bsns_year`는 **보고서 기간이 끝난 해**(12월 외 결산은 사업보고서만 다음 해) — 엔진이 회계연도 시작 해로 바꿔 읽는다(`src/lib/financials/period.ts`). 회원 OpenDART 한도는 그 회원만 막고, 전체 soft limit은 회원 요청을 막는다(§13) |
 
 > 이 문서는 PRD의 "무엇을 만들지"를 "어떻게 만들지"로 옮긴 것이다. 기능 ID(F-xx)는 PRD v0.4의 요구사항 ID를 그대로 쓴다.
@@ -222,7 +223,7 @@ sequenceDiagram
 | `compare` | 최근 1개 분기 (TTM 지표는 최근 4개 분기) |
 | `event` | 최근 12개월 공시 |
 
-3. 범위는 **2015Q1 ~ 최신 보고서**로 자른다. 잘렸으면 결과에 표시한다.
+3. 범위는 **2016Q1 ~ 최신 보고서**로 자른다(`EARLIEST_QUARTER`, `src/lib/ask/quarter.ts`). 잘렸으면 결과에 표시한다. 2015년은 사업보고서만 있고 1·반기·3분기보고서가 OpenDART 재무 API에 없어(013) 분기 값을 만들 수 없다 — Phase 5에서 2015Q1 → 2016Q1로 줄였다(2016Q1의 직전 분기 증감률은 "직전 분기 없음"). 범위 밖 안내 문구(질문 422·보드 422)는 이 값을 따라간다.
 4. YoY 계산에 필요한 전년 동기 값은 보고서의 전기(前期) 값으로 얻으므로 **추가 조회하지 않는다**.
 5. 결과의 분석 기준 바에 "사용 기간 + 선정 이유"를 표시한다.
 
@@ -249,7 +250,7 @@ sequenceDiagram
 | 기업이 상장사 목록에 있는가 | 후보 있으면 되묻기(`CLARIFICATION_NEEDED`), 없으면 지원 불가 |
 | 지표가 지표 목록(§6.4)에 있는가 | "지원하지 않는 지표" + 가능한 지표 예시 |
 | 연산이 허용 목록(§4.4)에 있는가 | 지원 불가 |
-| 기간이 2015Q1~최신 범위인가 | 범위 안으로 조정 후 표시, 전부 벗어나면 오류 |
+| 기간이 2016Q1~최신 범위인가 | 범위 안으로 조정 후 표시, 전부 벗어나면 오류 |
 | 기업 수 ≤ 6 (대상 1 + 경쟁사 5) | 초과 오류 |
 | 조회 행 수가 처리 한도(§12.5) 이하인가 | `TOO_LARGE` |
 
@@ -440,6 +441,7 @@ sequenceDiagram
 - 키 중복: 기업 목록(`companies`)에서 결합할 기업의 보통주 코드가 2개 이상이거나 한 코드가 두 기업에 붙어 있으면, 또는 같은 종목·기준일 가격이 2행 이상이면 **모든 기업의 주가 지표를 비우고**(`NO_PRICE`) `result.basis.flags` 맨 앞에 `"주가 결합 중단 — 보통주 종목코드 중복: …"` / `"주가 결합 중단 — 같은 종목·기준일 가격 2행 이상: …"`. 어느 값이 맞는지 고르지 않는다.
 - 우선주: 단축코드 끝자리 5·7·9 또는 종목명 끝 `우`·`우B`·`2우B`·`우(전환)` → 보통주 계산에서 빼고 "제외(우선주 n)"로 센다.
 - 실행 기록: `build_result` 단계 `outputSummary`에 `"주가 결합: 재무 1행 + 주가 1행 → 1행, 제외 0행(우선주 0), 기준일 2026-09-30, 주가 호출 1건"`, 주가 API 호출 수는 단계 `external_calls`.
+- 받은 기록(Phase 5, `price_fetch_state`): 종목 + 기간 끝마다 "받았다"와 받은 행 수를 남긴다. 기간 안 가격이 0행이던 종목(거래정지 등)은 같은 날(지금 기준)·기준일이 지난 뒤(과거 기준)에 다시 부르지 않고 `NO_PRICE`. 행이 있었는데 저장이 안 된 경우(같은 종목·기준일 2행)는 다시 받아 결합 검사가 경고하게 둔다. 표가 없거나 읽지 못해도 예전처럼 부른다.
 
 ---
 
@@ -747,7 +749,7 @@ sequenceDiagram
 ### 15.3 기업·섹터
 | 테이블 | 주요 컬럼 |
 |---|---|
-| `companies` 🗄️ | `corp_code`, `stock_code`, `corp_name`, `market`, `induty_code`, `sector_id`, `sector_source`, `acc_mt`, `updated_at` |
+| `companies` 🗄️ | `corp_code`, `stock_code`, `corp_name`, `market`, `induty_code`, `sector_id`, `sector_source`, `acc_mt`, `updated_at`, `profile_checked_at`, `profile_failed_at`(기업개황 미리 채우기가 개황을 못 받은 시각 — 7일 건너뜀, Phase 5) |
 | `sectors`, `sector_overrides`, `sector_rules` 🗄️ | §8 |
 
 ### 15.4 수집 데이터
@@ -759,6 +761,7 @@ sequenceDiagram
 | `account_map` 🗄️ | `metric`, `priority`, `account_id`, `account_nm`, `industry_type` |
 | `disclosures` 🗄️ | `rcept_no`, `corp_code`, `report_nm`, `rcept_dt`, `pblntf_ty`, `issue_tag`, `importance`, `is_correction` |
 | `stock_prices` 🗄️ | `stock_code`, `base_date`, `close_price`, `listed_shares`, `fetched_at` |
+| `price_fetch_state` 🗄️ | `stock_code`, `range_to`, `range_from`, `row_count`(0 = 받았지만 없음), `fetched_at` — 종목별 주가 받은 기록 (§6.6, Phase 5) |
 | `news_search_cache` 🗄️ | `query_hash`, `items`(제목·링크·요약문·발행일만), `fetched_at` (6시간) |
 | `robots_cache` 🗄️ | `domain`, `rules`, `fetched_at` |
 | `data_issues` 🗄️ | `corp_code`, `kind`, `detail`, `created_at` |
