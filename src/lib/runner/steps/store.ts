@@ -53,7 +53,8 @@ export const DEFAULT_LIMITS: EngineLimits = {
   maxSteps: 8,
   maxRetries: 2,
   maxSeconds: 90,
-  maxLlmCostUsd: 0.01,
+  // quota_config에 값이 없을 때만 — 운영 값은 $0.05 (투자 리포트, 마이그레이션 20261001220000)
+  maxLlmCostUsd: 0.05,
 };
 
 export interface AnalysisPatch {
