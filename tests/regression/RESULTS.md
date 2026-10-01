@@ -105,3 +105,12 @@
 - `value`: 금액은 **원 단위 정수 글자**, 비율은 숫자(소수 넷째 자리까지 비교), 계산 불가는 `null` + `reason`. 부호가 바뀐 증감률은 `"흑자전환"` 등 + `reason: "SIGN_CHANGE"`
 - 계산 규칙 정답(`formula`·`inputs`): 실제 공시에서 드문 경우(분모 0·직전 없음)만. `inputs.profit: true`면 이익 지표 규칙(0 → 양수 = 흑자전환)
 - PER·PBR·시가총액: 주가 결합(WU-502)이 병합되면 `engine.ts`의 `engineValue`에 연결한다 (통합 때 — 지금은 "연결 전" 오류)
+
+## 5. 실행 기록
+
+| 날짜 (KST) | 어디서 | 기준 커밋 | 결과 | 비고 |
+|---|---|---|---|---|
+| 2026-10-01 12:11 | 로컬 · 실제 AI 범위 판정 1회 | Phase 4 `feat/WU-503-regression` | 24/25 (거절 14/14, 오거절 0/11) | §3, $0.0066 |
+| 2026-10-01 12:43 | GitHub Actions `Regression` (PR #38) | `feat/WU-503-regression` | ✅ 통과 | run `36811788201` |
+| 2026-10-01 13:06 | GitHub Actions `Regression` (main push) | `83933e1` (Phase 4 병합) | ✅ **28/28** | run `36813584403` — main 첫 초록불 |
+| 2026-10-01 14:14 | 로컬 (Phase 5 `feat/P5-demo` 시작) | `83933e1` | ✅ 28/28 | `pnpm exec vitest run -c tests/regression/vitest.config.mts` |

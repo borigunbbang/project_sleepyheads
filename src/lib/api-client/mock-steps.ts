@@ -9,10 +9,15 @@ import { buildStoredPlan, toPlanView } from "@/lib/runner/steps/plan";
 import { ApiRequestError } from "./errors";
 import { mockAsk } from "./mock-analysis";
 import { remainingQuestions } from "./mock-session";
-import { mockDelay, readMockState, updateMockState } from "./mock-store";
+import { mockDelay, readMockState, sessionFlag, updateMockState } from "./mock-store";
 import type { AskResponse, StepResponse, WithRemaining } from "./types";
 
 const HIDDEN_KEY = "sleepyheads.mock.steps";
+/**
+ * e2e용: 이 값이 "1"이면 [닫기]·[취소]가 성공을 돌려주지만 다시 불러온 분석은 아직 취소 전 상태다
+ * — Phase 4 운영에서 [닫기] 뒤 화면이 그대로 남던 일(DB는 canceled)을 흉내 낸다
+ */
+export const MOCK_STALE_AFTER_CANCEL_KEY = "sleepyheads.mock.staleAfterCancel";
 
 export function isMockComplexQuestion(question: string): boolean {
   return /원인/.test(question);
@@ -106,12 +111,13 @@ export async function mockCancel(
   if (!cancelable.includes(analysis.status)) {
     throw new ApiRequestError("INVALID_STATE", "이미 끝난 분석은 취소할 수 없습니다.", 409);
   }
-  updateMockState((s) => {
-    const a = s.analyses[id];
-    a.status = "canceled";
-    a.stopReason = "USER_CANCELED";
-    a.progress = null;
-  });
+  if (!sessionFlag(MOCK_STALE_AFTER_CANCEL_KEY))
+    updateMockState((s) => {
+      const a = s.analyses[id];
+      a.status = "canceled";
+      a.stopReason = "USER_CANCELED";
+      a.progress = null;
+    });
   return {
     data: { status: "canceled", stopReason: "USER_CANCELED" },
     questionsRemaining: remainingQuestions(),

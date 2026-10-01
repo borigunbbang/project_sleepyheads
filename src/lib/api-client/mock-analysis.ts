@@ -9,7 +9,9 @@
 //   … 서버 오류           → 예상 못 한 서버 오류(500, 요청 ID 안내)
 //   SK하이닉스 … 뉴스      → 최근 실적 + 뉴스 단서 (WU-305)
 //   SK하이닉스 … PER·PBR·시가총액 → 주가 지표 결과 (WU-502 화면: 기준일·적자·자본잠식·결합 경고)
+import { earliestQuarterLabel } from "@/components/ask/errorMessages";
 import type { Analysis, CompanyRef } from "@/contracts";
+import { EARLIEST_QUARTER, parseQuarter } from "@/lib/ask/quarter";
 import { MOCK_COMPANIES, findMockCompany } from "../../../tests/fixtures/mock/companies";
 import {
   MIXED_QUESTION_CAVEAT,
@@ -111,6 +113,12 @@ export async function mockSearchCompanies(q: string): Promise<WithRemaining<Comp
   return { data, questionsRemaining: remainingQuestions() };
 }
 
+/** 질문에 조회 시작 연도(EARLIEST_QUARTER)보다 이른 "20xx년"이 있는가 — 서버 422(OUT_OF_RANGE) 흉내 */
+function asksBeforeEarliestYear(question: string): boolean {
+  const earliest = parseQuarter(EARLIEST_QUARTER).year;
+  return [...question.matchAll(/(20\d{2})년/g)].some((m) => Number(m[1]) < earliest);
+}
+
 export async function mockAsk(question: string): Promise<WithRemaining<AskResponse>> {
   await mockDelay(900);
   if (readMockState().questionsUsed >= MOCK_QUESTIONS_LIMIT) {
@@ -148,10 +156,10 @@ export async function mockAsk(question: string): Promise<WithRemaining<AskRespon
   } else if (ADVICE.test(question)) {
     analysis.status = "declined";
     analysis.decline = adviceDecline(company?.name ?? "SK하이닉스");
-  } else if (/20(0\d|1[0-4])년/.test(question)) {
+  } else if (asksBeforeEarliestYear(question)) {
     throw new ApiRequestError(
       "OUT_OF_RANGE",
-      "조회할 수 있는 기간은 2015년 1분기부터 최신 보고서까지입니다.",
+      `조회할 수 있는 기간은 ${earliestQuarterLabel()}부터 최신 보고서까지입니다.`,
       422,
     );
   } else if (/만족도|연봉|직원 수/.test(question)) {

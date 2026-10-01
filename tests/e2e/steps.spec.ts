@@ -57,6 +57,20 @@ test.describe("계획 카드 (WU-301)", () => {
     await page.reload();
     await expect(page.getByRole("heading", { name: "취소한 분석입니다" })).toBeVisible();
   });
+
+  test("[닫기] 뒤 다시 불러온 분석이 아직 계획 카드 상태여도 '취소한 분석'으로 바뀐다 (Phase 4 운영)", async ({
+    page,
+  }) => {
+    await askComplex(page);
+    // 취소는 받아들여졌지만 다시 불러온 응답이 취소 전 상태인 경우를 흉내 낸다
+    await page.evaluate(() =>
+      window.sessionStorage.setItem("sleepyheads.mock.staleAfterCancel", "1"),
+    );
+    await page.getByRole("button", { name: "닫기" }).click();
+    await expect(page.getByRole("heading", { name: "취소한 분석입니다" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "이렇게 분석할게요" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "분석 시작" })).toHaveCount(0);
+  });
 });
 
 test.describe("단계 실행 (WU-302)", () => {

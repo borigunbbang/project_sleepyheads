@@ -3,10 +3,18 @@
 //
 //   필터 바꾸기(B2)   → 원래 결과를 본떠 숫자를 다시 지어내고 explanationStatus "stale" (질문 수 그대로)
 //   설명 다시 쓰기(Q9) → 질문 1회 사용, 분석 글을 새로 쓰고 "ready"
-//   오류: 비교 기업 6곳 이상·시작 분기가 끝보다 늦음 → 400, 2015Q1 이전·최신 분기 이후 → 422,
-//         분기 수 × 기업 수가 100을 넘음(예: 2015Q1~최신 + 비교 기업 2곳) → 413
+//   오류: 비교 기업 6곳 이상·시작 분기가 끝보다 늦음 → 400, 조회 시작 분기(EARLIEST_QUARTER) 이전·최신 분기 이후 → 422,
+//         분기 수 × 기업 수가 100을 넘음(예: 조회 시작 분기~최신 + 비교 기업 2곳) → 413
 //   AI 장애 흉내: sessionStorage에 MOCK_LLM_DOWN_KEY = "1"을 넣으면 Q9가 503 (차감 없음, 기존 설명 유지)
-import type { BoardFilters, BoardView, CompanyRef, RewriteResponse } from "@/contracts";
+//   새 데이터 버전 흉내: MOCK_BOARD_NEW_VERSION_KEY = "1"이면 B2 결과가 원래 분석과 다른 데이터 버전 + flags 맨 앞 한 줄
+import { earliestQuarterLabel } from "@/components/ask/errorMessages";
+import type {
+  BoardFilters,
+  BoardView,
+  CompanyRef,
+  ResultObject,
+  RewriteResponse,
+} from "@/contracts";
 import {
   EARLIEST_QUARTER,
   compareQuarters,
@@ -20,12 +28,15 @@ import {
 import { MOCK_COMPANIES } from "../../../tests/fixtures/mock/companies";
 import { ApiRequestError } from "./errors";
 import { MOCK_QUESTIONS_LIMIT, nextKstMidnight, remainingQuestions } from "./mock-session";
-import { mockDelay, readMockState, updateMockState } from "./mock-store";
+import { mockDelay, readMockState, sessionFlag, updateMockState } from "./mock-store";
 import type { WithRemaining } from "./types";
 
 const BOARDS_KEY = "sleepyheads.mock.boards";
 /** e2e·수동 확인용: 이 값이 "1"이면 설명 다시 쓰기가 AI 장애(503)로 끝난다 */
 export const MOCK_LLM_DOWN_KEY = "sleepyheads.mock.llmDown";
+/** e2e·수동 확인용: 이 값이 "1"이면 B2가 새 데이터 버전으로 다시 계산한 결과를 준다 (서버 boardVersionFlag와 같은 모양) */
+export const MOCK_BOARD_NEW_VERSION_KEY = "sleepyheads.mock.boardNewVersion";
+const MOCK_NEW_VERSION_ID = "b0a4d000-0000-4000-8000-000000000001";
 /** 비교 기업 최대 수 (PHASE3_PLAN §3.1) */
 export const MAX_BOARD_PEERS = 5;
 
@@ -50,13 +61,23 @@ function saveBoard(analysisId: string, board: Omit<BoardView, "id" | "analysisId
   }
 }
 
+/** 새 데이터 버전 흉내가 켜져 있으면 결과의 버전을 바꾸고 서버처럼 flags 맨 앞에 한 줄을 붙인다 */
+function withMockNewVersion(result: ResultObject): ResultObject {
+  if (!sessionFlag(MOCK_BOARD_NEW_VERSION_KEY)) return result;
+  const original = result.basis.dataVersionId;
+  const flag = `보드 데이터 버전 ${MOCK_NEW_VERSION_ID.slice(0, 8)} — 원래 분석(${original.slice(0, 8)})과 다릅니다. 위 [같은 조건으로 재실행]은 원래 분석 기준입니다`;
+  return {
+    ...result,
+    basis: {
+      ...result.basis,
+      dataVersionId: MOCK_NEW_VERSION_ID,
+      flags: [flag, ...(result.basis.flags ?? [])],
+    },
+  };
+}
+
 function llmDown(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.sessionStorage.getItem(MOCK_LLM_DOWN_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return sessionFlag(MOCK_LLM_DOWN_KEY);
 }
 
 function analysisWithResult(analysisId: string) {
@@ -99,7 +120,7 @@ function checkFilters(filters: BoardFilters): CompanyRef[] {
     ) {
       throw new ApiRequestError(
         "OUT_OF_RANGE",
-        "조회할 수 있는 기간은 2015년 1분기부터 최신 보고서까지입니다.",
+        `조회할 수 있는 기간은 ${earliestQuarterLabel()}부터 최신 보고서까지입니다.`,
         422,
       );
     }
@@ -141,7 +162,7 @@ export async function mockUpdateBoardFilters(
   // 필터 바꾸기는 AI를 쓰지 않고 질문 수도 그대로다 (API_SPEC B2) — questionsUsed를 건드리지 않는다
   const board = {
     filters,
-    result: buildMockBoardResult({ original: analysis.result, filters, peers }),
+    result: withMockNewVersion(buildMockBoardResult({ original: analysis.result, filters, peers })),
     explanationStatus: "stale" as const,
   };
   saveBoard(analysisId, board);

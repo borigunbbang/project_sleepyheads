@@ -27,6 +27,7 @@ export function BoardPanel({
   explanation: initialExplanation,
   groupBy,
   peers: initialPeers = [],
+  onDataVersion,
 }: {
   analysisId: string;
   /** 분석의 원래 결과 — 보드를 불러오기 전과 불러오지 못했을 때 보여 준다 */
@@ -35,6 +36,8 @@ export function BoardPanel({
   groupBy?: string;
   /** 원래 질문의 비교 기업 (analysis.request.peers) — 필터를 바꾼 적 없을 때의 비교 기업 칩 */
   peers?: CompanyRef[];
+  /** 지금 보여 주는 보드 결과의 데이터 버전 — 원래 분석과 다르면 위 VersionBar가 "원래 분석 기준"임을 밝힌다 */
+  onDataVersion?: (dataVersionId: string) => void;
 }) {
   const { applyRemaining } = useSession();
   const latest = useMemo(() => latestAvailableQuarter(), []);
@@ -83,6 +86,11 @@ export function BoardPanel({
       cancelled = true;
     };
   }, [analysisId, applyRemaining]);
+
+  const boardVersionId = board.result.basis.dataVersionId;
+  useEffect(() => {
+    onDataVersion?.(boardVersionId);
+  }, [boardVersionId, onDataVersion]);
 
   const peerCodes = board.filters.peers ?? initialPeers.map((p) => p.stockCode);
   const unknownCodes = peerCodes.filter((code) => !names[code]);

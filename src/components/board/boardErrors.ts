@@ -1,7 +1,8 @@
 // 보드 필터(B2)·설명 다시 쓰기(Q9) 오류 안내 (API_SPEC B2·Q9). 무엇이 잘못됐고 어떻게 고치면 되는지를 쓴다.
 // 질문 화면 안내(components/ask/errorMessages.ts)와 달리 필터 바꾸기는 질문 수를 쓰지 않는다.
 import type { ErrorNotice } from "@/components/ask/errorMessages";
-import { formatKstTime } from "@/components/ask/errorMessages";
+import { earliestQuarterLabel, formatKstTime } from "@/components/ask/errorMessages";
+import { EARLIEST_QUARTER } from "@/lib/ask/quarter";
 import { ApiRequestError } from "@/lib/api-client/errors";
 
 function asApiError(error: unknown): ApiRequestError {
@@ -27,7 +28,7 @@ export function describeBoardError(error: unknown, latestQuarter: string): Error
     case "OUT_OF_RANGE":
       return {
         title: "조회할 수 없는 기간입니다",
-        body: `2015년 1분기(2015Q1)부터 ${latestQuarter}까지 안에서 기간을 골라 주세요. ${kept}`,
+        body: `${earliestQuarterLabel()}(${EARLIEST_QUARTER})부터 ${latestQuarter}까지 안에서 기간을 골라 주세요. ${kept}`,
         ...none,
       };
     case "VALIDATION_ERROR":
