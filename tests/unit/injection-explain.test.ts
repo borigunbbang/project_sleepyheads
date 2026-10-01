@@ -168,7 +168,7 @@ describe("③ 설명 작성 — 기사·공시 속 명령문 (WU-504)", () => {
     await generateExplanationWithUsage(input);
     const [request] = llm.requests;
     expect(Object.keys(request).sort()).toEqual(
-      ["analysisId", "input", "model", "schema", "userId"].sort(),
+      ["analysisId", "input", "model", "schema", "timeoutMs", "userId"].sort(),
     );
     expect(JSON.stringify(request)).not.toMatch(/"tools"|"tool_choice"|"functions"/);
     // 출력은 JSON 스키마로만 (Structured Outputs, strict)

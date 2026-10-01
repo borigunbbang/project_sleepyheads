@@ -37,15 +37,15 @@ export interface Insight {
 
 /**
  * 분량 상한 (PRD F-V11). 서버 검사와 화면 테스트가 같은 값을 쓴다.
- * 투자 리포트(Phase 5 후속)로 관점별 해석을 담느라 늘렸다 — 결론은 필요에 따라 최대 5문장, 투자 포인트 2~8개(관점별 1~2개).
+ * 투자 리포트(Phase 5 후속)로 관점별 해석을 담느라 늘렸다 — 결론은 필요에 따라 최대 15문장(2026-10-01), 투자 포인트 2~8개.
  */
 export const EXPLANATION_LIMITS = {
-  conclusionSentences: 5,
+  conclusionSentences: 15,
   insightsMin: 2,
   insightsMax: 8,
-  insightMaxChars: 130,
+  insightMaxChars: 160,
   /** 결론 + 투자 포인트 합계 (공백 포함) */
-  mainMaxChars: 1300,
+  mainMaxChars: 3500,
 } as const;
 
 export interface Explanation {

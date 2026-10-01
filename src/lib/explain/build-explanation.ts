@@ -27,6 +27,22 @@ function looksLikeCausalClaim(text: string): boolean {
   return CAUSAL_KEYWORDS.some((kw) => claim.includes(kw));
 }
 
+/**
+ * 추론임을 드러내는 표현 (2026-10-01 예림 결정): 주어진 자료(API 숫자·뉴스 RSS) 안에서 추론해도 되지만,
+ * 원인·전망을 말하는 문장은 반드시 "~로 예상됩니다·보입니다·추정됩니다·가능성이 있습니다"처럼 추론임을 밝힌다.
+ */
+const HEDGE_RE =
+  /(예상됩니다|예상된다|예상돼|보입니다|보인다|보여|추정됩니다|추정된다|추정돼|가능성이|가능성도|풀이됩니다|해석됩니다|짐작됩니다|여겨집니다|전망됩니다)/;
+export function isHedged(text: string): boolean {
+  return HEDGE_RE.test(text);
+}
+
+/** 원인·전망 문장 검사: 추론 표현이 있어야 하고 근거(숫자 또는 뉴스)가 있어야 남는다. 남으면 추론 문장이다 */
+function inferenceCheck(text: string, hasGround: boolean): { keep: boolean; inferred: boolean } {
+  if (!looksLikeCausalClaim(text)) return { keep: true, inferred: isHedged(text) };
+  return { keep: hasGround && isHedged(text), inferred: true };
+}
+
 /** 권유 금지어(§11.5) 또는 링크 주소·비밀 값(WU-504 주입 방어)이 든 문장은 버린다 */
 function rejected(text: string): boolean {
   return containsBannedWord(text) || containsLeak(text);
@@ -79,9 +95,9 @@ export function buildExplanation(input: BuildExplanationInput): Explanation {
     if (conclusion.length >= EXPLANATION_LIMITS.conclusionSentences) break;
     const text = resolveText(raw, input.figures);
     if (text === null || rejected(text)) continue;
-    // 결론도 뉴스 근거 없이 원인을 단정하지 않는다 (투자 포인트와 같은 검사, TECH §11.5)
+    // 결론의 원인 문장도 추론 표현이 있어야 남는다 — 근거는 결과·리포트 숫자 자체 (TECH §11.5, 2026-10-01 개정)
     const causal = looksLikeCausalClaim(text);
-    if (causal && citedNewsIds.length === 0) continue;
+    if (causal && !isHedged(text)) continue;
     if (conclusionChars + text.length > EXPLANATION_LIMITS.mainMaxChars) continue;
     if (causal) conclusionUsesNews = true;
     conclusion.push(text);
@@ -101,7 +117,11 @@ export function buildExplanation(input: BuildExplanationInput): Explanation {
     const figureIds = raw.figure_ids.filter((id) => id in input.figures);
     const newsIds = input.hasNews ? raw.news_ids.filter((id) => newsClueById.has(id)) : [];
     if (figureIds.length === 0 && newsIds.length === 0) continue; // 근거 연결 검사
-    if (newsIds.length === 0 && looksLikeCausalClaim(text)) continue; // 원인 추정엔 뉴스 근거 필수 — `inferred` 자가 신고 여부와 무관하게 문장 자체를 검사(우회 방지)
+    // 원인·전망 추론은 근거(숫자·뉴스) + 추론 표현이 있어야 남는다 — `inferred` 자가 신고와 무관하게 문장 자체를 검사(우회 방지).
+    // AI가 추론이라고 밝힌(inferred) 문장도 추론 표현이 없으면 버린다
+    const check = inferenceCheck(text, figureIds.length + newsIds.length > 0);
+    if (!check.keep) continue;
+    if (raw.inferred && !isHedged(text)) continue;
 
     insights.push({
       kind: raw.kind,
@@ -110,7 +130,8 @@ export function buildExplanation(input: BuildExplanationInput): Explanation {
       figureIds,
       newsIds,
       chartRef: chartRefOrNull(raw.chart_ref, chartIds),
-      inferred: raw.inferred,
+      // 추론 표현이 있으면 화면에 "(추정)" 표시
+      inferred: raw.inferred || check.inferred,
     });
   }
 

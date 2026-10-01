@@ -122,7 +122,8 @@ describe("분석 글 — 투자 리포트를 함께 읽는다", () => {
     // 지시문에 관점별 해석 요구
     const system = llmCallMock.mock.calls[0][0].input[0].content as string;
     expect(system).toContain("valuation(밸류에이션)");
-    expect(system).toContain("두 개 이상의 숫자를 엮어");
+    expect(system).toContain("인사이트");
+    expect(system).toContain("예상됩니다");
   });
 
   it("투자 포인트에 관점이 붙고, 리포트 숫자·차트를 근거로 쓸 수 있다. 조사는 값에 맞춘다", async () => {

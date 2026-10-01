@@ -454,7 +454,7 @@ describe("상한 (단계 수·AI 비용)", () => {
     scripted.get_financials = [
       {
         ...(ok("get_financials") as object),
-        usage: { externalCalls: 1, llmCostUsd: 0.06 }, // 기본 상한 $0.05를 넘는다
+        usage: { externalCalls: 1, llmCostUsd: 0.11 }, // 기본 상한 $0.10을 넘는다
       } as ToolOutcome,
     ];
     const res = await runStepRequest(ID, deps());

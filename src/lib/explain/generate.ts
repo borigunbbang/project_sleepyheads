@@ -21,6 +21,9 @@ export interface GenerateExplanationInput {
   analysisId?: string | null;
 }
 
+/** 분석 글 AI 한 번의 시간 상한 (해석 AI는 기본 30초 그대로) */
+const EXPLAIN_TIMEOUT_MS = 90_000;
+
 /** 트랙 B `unavailableFlags`(src/lib/runner/present.ts)가 만드는 줄의 머리말 */
 const UNAVAILABLE_PREFIX = "계산 불가 (";
 
@@ -51,6 +54,8 @@ export async function generateExplanationWithUsage(
     }
     const { output, usage } = await llmCall<unknown>({
       ...(choice.model ? { model: choice.model } : {}),
+      // 결론 최대 15문장 + 투자 포인트 8개 — 기본 30초로는 모자랄 수 있다 (POST /step 300초 안)
+      timeoutMs: EXPLAIN_TIMEOUT_MS,
       userId: input.userId ?? null,
       analysisId: input.analysisId ?? null,
       input: buildExplainPrompt({

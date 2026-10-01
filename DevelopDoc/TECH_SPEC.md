@@ -6,7 +6,7 @@
 | 문서 종류 | TECH_SPEC (기술 명세) |
 | 작성자 | Sung, Hyun-Joon · Lee, Yelim · ByeongJun Min |
 | 작성일 | 2026-09-28 |
-| 버전 | v0.7.0 |
+| 버전 | v0.7.1 |
 | 기준 PRD | [PRD.md](./PRD.md) v0.6 |
 | 관련 문서 | [API_SPEC.md](./API_SPEC.md) v0.3.1 — 서버 API 상세 명세 |
 
@@ -23,6 +23,7 @@
 | v0.6 | 2026-09-29 | **뉴스 수집을 Google 뉴스 RSS로 교체**(§3.3, §10, 한도 §13, 환경변수에서 `NAVER_*` 삭제). **분석 글을 투자 인사이트로 전환**: `insights`(투자 포인트) 추가, 분량 상한·근거 연결 검사(§11.3~11.5). 주가 API 주소가 **V2**(`GetStockSecuritiesInfoService_V2/getStockPriceInfo_V2`)로 바뀐 것을 반영(§3.2), 상장주식수 필드 확인(T5) |
 | v0.6.1 | 2026-09-29 | (WU-101, 원래 PR #7의 v0.5.1) WU-101 DB 스키마 작성 중 발견: `max_declines_per_day`(회원별 상한, F-U8)를 판정할 컬럼이 없었음 — `decline_stats_daily`는 전체 집계만, `usage_daily`엔 회원별 거절 횟수 컬럼이 없었다. §15.1 `usage_daily`에 `declines` 컬럼 추가. PR #7 합치면서 외부 호출 기록 `provider`의 `naver`를 `news`(Google 뉴스 RSS)로 바꾸는 마이그레이션 추가 |
 | v0.6.2 | 2026-09-30 | WU-114: 한도 표(§13)에 `guest_requests_per_minute`(비로그인 IP당 분당 30) 추가, 분당 요청 제한을 DB에서 센다는 점 명시 |
+| v0.7.1 | 2026-10-01 | 분석 글 인사이트·추론(§11.3·§11.5): 주어진 자료 안에서 원인·지속성·다음 분기 흐름을 추론해도 되며, 원인·전망 문장은 추론 표현(예상됩니다·보입니다·추정됩니다·가능성이 있습니다)이 있어야 남고 (추정) 표시 — 단정한 원인 문장·추론 표현 없는 inferred 문장은 버림(`build-explanation.ts` `isHedged`). `EXPLANATION_LIMITS` 결론 최대 15문장·투자 포인트 160자·합계 3,500자, 분석 글 AI 시간 상한 90초. `max_llm_cost_usd_per_question` $0.10 |
 | **v0.7.0** | 2026-10-01 | **투자 리포트**(§12.6): 기업 하나가 대상인 모든 질문에 기본정보·주가·재무·밸류에이션·공시를 함께 계산해 붙이고(`result.report`), 분석 글이 관점별(성장성·수익성·재무 안정성·밸류에이션·주가 흐름·이슈)로 해석한다. 분석 글 분량 상한 결론 최대 5문장·투자 포인트 최대 8개·한 개 130자·합계 1,300자(§11.3), 자리표시자 뒤 조사를 값에 맞춤(§11.4). 캐시 3개 `stock_price_history`·`report_extras`·`company_facts`(§15.4) |
 | v0.6.4 | 2026-10-01 | Phase 5(예림): **조회 시작 분기 2015Q1 → 2016Q1**(§4.3·§4.5 — OpenDART 재무 API에 2015년 1·반기·3분기보고서가 없다, 팀 결정), 종목별 주가 "받았지만 없음" 기록 `price_fetch_state`(§6.6·§15.4), 기업개황 미리 채우기가 개황을 못 받은 기업을 7일 건너뜀 `companies.profile_failed_at`(§15.3) |
 | v0.6.3 | 2026-09-30 | Step 1 점검 반영: 금융사 매출은 원문에 영업수익 합계가 없어 계산 불가로 표시(§7), T6 샘플 기업 확정, "최근 4개 분기" OpenDART 호출 수 실측(§13). OpenDART `bsns_year`는 **보고서 기간이 끝난 해**(12월 외 결산은 사업보고서만 다음 해) — 엔진이 회계연도 시작 해로 바꿔 읽는다(`src/lib/financials/period.ts`). 회원 OpenDART 한도는 그 회원만 막고, 전체 soft limit은 회원 요청을 막는다(§13) |
@@ -267,7 +268,7 @@ sequenceDiagram
 | `max_steps_per_question` | 8 |
 | `max_retries_per_step` | 2 (외부 API 오류·시간 초과만 재시도) |
 | `max_seconds_per_question` | 90 |
-| `max_llm_cost_usd_per_question` | 0.05 (v0.7.0 — 투자 리포트로 분석 글 입력이 커짐. 이전 0.01 → 0.03) |
+| `max_llm_cost_usd_per_question` | 0.10 (v0.7.1 — 결론 최대 15문장 인사이트 분석 글. 이전 0.01 → 0.03 → 0.05) |
 | `max_news_search_calls` | 3 |
 | `max_news_bodies` | 5 |
 

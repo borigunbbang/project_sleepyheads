@@ -150,7 +150,7 @@ test.describe("결과 화면 — 핵심 통과 테스트", () => {
     }
   });
 
-  test("분석 글이 길어도(관점별 투자 포인트 최대 개수) 결론은 375px 첫 화면 안, 가로로 넘치지 않는다", async ({
+  test("분석 글이 길어도(결론 최대 문장 수·투자 포인트 최대 개수) 결론 앞 3문장은 375px 첫 화면 안, 가로로 넘치지 않는다", async ({
     page,
   }, testInfo) => {
     // 투자 리포트(Phase 5 후속)로 분석 글이 관점별로 길어졌다 — 전체를 한 화면에 넣는 대신, 결론은 첫 화면에서 읽히고
@@ -179,9 +179,10 @@ test.describe("결과 화면 — 핵심 통과 테스트", () => {
         const label = p.querySelector("span")!.outerHTML;
         p.innerHTML = label + filler.slice(0, limits.insightMaxChars);
       });
+      // 결론이 최대 15문장까지 길어질 수 있어(2026-10-01) 첫 화면에는 앞 3문장(질문의 답과 핵심)이 들어와야 한다
+      const third = conclusion.querySelectorAll("p")[2];
       return {
-        conclusionBottom:
-          conclusionBox.getBoundingClientRect().bottom - el.getBoundingClientRect().top,
+        conclusionBottom: third.getBoundingClientRect().bottom - el.getBoundingClientRect().top,
         overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       };
     }, EXPLANATION_LIMITS);

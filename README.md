@@ -167,7 +167,7 @@ update quota_config set value = 30 where key = 'questions_per_day';
 |---|---|---|
 | `questions_per_day` | 20 | 회원별 하루 질문(후속 질문·설명 다시 쓰기 포함) |
 | `llm_questions_per_day_global` | 300 | 서비스 전체 하루 AI 사용 질문 |
-| `max_llm_cost_usd_per_question` | 0.05 | 질문당 AI 비용 상한(USD) — 투자 리포트로 분석 글 1건 약 $0.02~0.03 |
+| `max_llm_cost_usd_per_question` | 0.10 | 질문당 AI 비용 상한(USD) — 투자 리포트 + 결론 최대 15문장 분석 글 |
 | `max_seconds_per_question` | 90 | 질문당 실행 시간 상한(초) |
 | `dart_global_soft_limit` / `dart_global_hard_limit` | 16000 / 19000 | OpenDART 전체 하루 호출 |
 | `max_declines_per_day` | 10 | 회원별 하루 거절 상한 |
