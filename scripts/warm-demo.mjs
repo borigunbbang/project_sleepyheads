@@ -150,7 +150,7 @@ async function main() {
 
   console.log(`\n받아 둔 범위: ${result.period.from} ~ ${result.period.to}\n`);
   console.log(
-    `${padCell("기업", 14)}${padCell("종목코드", 10)}${padCell("재무", 10)}${padCell("전자공시 호출", 14)}${padCell("종가(기준일)", 26)}보고서 없음`,
+    `${padCell("기업", 14)}${padCell("종목코드", 10)}${padCell("재무", 10)}${padCell("전자공시 호출", 14)}${padCell("종가(기준일)", 26)}${padCell("리포트 호출", 12)}보고서 없음`,
   );
   for (const c of result.companies) {
     const price = c.price
@@ -158,7 +158,7 @@ async function main() {
       : "없음";
     const noReport = c.quartersWithoutReport.length > 0 ? c.quartersWithoutReport.join(", ") : "-";
     console.log(
-      `${padCell(c.name, 14)}${padCell(c.stockCode, 10)}${padCell(c.status, 10)}${padCell(c.dartCalls, 14)}${padCell(price, 26)}${noReport}`,
+      `${padCell(c.name, 14)}${padCell(c.stockCode, 10)}${padCell(c.status, 10)}${padCell(c.dartCalls, 14)}${padCell(price, 26)}${padCell(c.reportCalls ?? "-", 12)}${noReport}`,
     );
     if (c.error) console.log(`  └ ${c.error}`);
   }

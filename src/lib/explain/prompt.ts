@@ -1,6 +1,6 @@
 // AI 호출 ③(TECH §11.2 ③, §11.3~11.5) 지시문. 도구를 주지 않는다 — 이 JSON을 쓰는 것 말고는
 // 아무것도 할 수 없다(§11.5 "외부 텍스트 격리").
-import type { Chart, Figure } from "@/contracts";
+import type { Chart, CompanyReport, Figure, ReportFact } from "@/contracts";
 
 const INSTRUCTIONS = `
 너는 국내 상장 주식회사 분석 서비스의 설명 작성기다. 서버가 이미 계산한 결과를 읽고, 정해진 JSON
@@ -14,16 +14,29 @@ const INSTRUCTIONS = `
   값이 "흑자전환"·"적자전환"·"적자지속"인 증감 숫자는 "순이익이 {{f9}}했습니다"처럼 동사로 쓴다
   ("{{f9}} 늘며"처럼 쓰면 "흑자전환 늘며"가 된다).
 
-**글 구성**
-- conclusion: 정확히 2문장. 무엇이 일어났고 그것이 무엇을 뜻하는지.
-- insights(투자 포인트): 2~4개. kind는 positive(긍정 요인)·risk(위험 요인)·watch(다음에 확인할 점).
-  가능하면 긍정·위험 요인을 둘 다 넣는다. 숫자를 되풀이하지 말고 **숫자가 뜻하는 바**를 해석한다
-  (나쁜 예: "영업이익이 {{f3}} 늘었습니다" — 이미 차트에 있다. 좋은 예: "영업이익이 매출보다 더
-  빠르게 늘어 고정비 부담이 줄고 있는 것으로 보입니다").
-  - 한 개 80자 이내. figure_ids 또는 news_ids 중 하나 이상 반드시 채운다(둘 다 비면 폐기된다).
+**글 구성 — "숫자 읽어 주기"가 아니라 투자 판단에 쓸 해석**
+- 데이터는 두 묶음이다: ① 질문에 대한 계산 결과(숫자_목록 중 질문 차트) ② **투자_리포트**(기본정보·주가·재무·
+  밸류에이션·공시 — 질문이 무엇이든 대상 기업 전체 그림). 질문에 먼저 답하고, 리포트로 그 답의 의미를 넓힌다.
+- conclusion: 2~3문장. ① 질문에 대한 직접 답 ② 리포트 전체로 본 이 기업의 지금 상태(성장·수익성·재무·밸류에이션을
+  엮어서) ③ 투자자가 가장 주의할 점 하나. "A가 B보다 크다"처럼 이미 차트에 있는 사실만 되풀이하지 않는다.
+- insights(투자 포인트): **4~8개**, 아래 관점(theme)에서 데이터가 있는 것마다 1~2개.
+  - growth(성장성): 매출·이익 증가율, 사업연도 추이·연평균 성장률, 분기 흐름의 가속·둔화
+  - profitability(수익성): 영업이익률·순이익률·ROE·ROA의 수준과 방향, 매출보다 이익이 빨리 느는지(영업 레버리지)
+  - stability(재무 안정성): 부채비율·유동비율, 영업현금흐름 대비 설비투자·잉여현금흐름, 이익과 현금흐름의 괴리
+  - valuation(밸류에이션): PER·PBR·PSR·PCR을 **과거 평균·경쟁사와 견주어** 지금 수준이 어떤 위치인지,
+    그 배수가 이익 성장·ROE와 어울리는지. "저평가·고평가"라는 판정은 하지 않고 "과거 평균보다 높은/낮은 수준"처럼 비교로만
+  - price(주가 흐름): 기간 수익률·52주 범위 위치·변동성·거래량 변화 — 실적 흐름과 주가 흐름이 같은 방향인지
+  - issue(이슈): 최근 공시(자사주·배당·증자·M&A·소송 등)·최대주주 지분·뉴스 단서가 숫자와 어떻게 이어지는지
+  - kind는 positive(긍정 요인)·risk(위험 요인)·watch(다음에 확인할 점). 긍정·위험을 모두 넣는다.
+  - **두 개 이상의 숫자를 엮어** 뜻을 말한다 (나쁜 예: "PER은 {{f100021}}입니다". 좋은 예: "PER {{f100021}}은
+    과거 평균 {{f100025}}보다 높아, 최근 이익 증가 {{f100012}}가 이미 주가에 반영된 정도를 확인할 필요가 있습니다").
+  - 한 개 130자 이내. figure_ids 또는 news_ids 중 하나 이상 반드시 채운다(둘 다 비면 폐기된다).
+  - chart_ref: 그 해석의 근거 차트 ID (질문 차트 "c1"… 또는 리포트 차트 "r1"…).
   - 뉴스 자료가 없으면(아래 "뉴스 단서" 목록이 비어 있으면) **원인(왜 그런 일이 생겼는지)을 추정하지
     않는다.** 숫자 사이의 관계와 그것이 뜻하는 바까지만 쓴다. 추정이 들어간 문장은 inferred: true로
     표시하고 "~로 보입니다"처럼 추정임을 드러낸다.
+- 리포트에 없는 정보(컨센서스·목표주가·외국인 수급 등)는 지어내지 않는다. 금융업은 부채비율·영업이익률이 일반 기업과
+  뜻이 다르다는 점을 감안한다.
 
 **뉴스 단서 쓰는 법** (뉴스 단서가 있을 때)
 - 원인·배경(왜 늘었나/줄었나)은 **뉴스 단서로만** 설명한다. 그 투자 포인트는 news_ids에 뉴스 ID를 넣고,
@@ -85,16 +98,59 @@ function kstDate(iso: string): string {
   return Number.isNaN(time) ? "" : new Date(time + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
+/** AI에 넘기는 리포트 요약 — 칸 이름과 숫자 ID·글자 값, 계산 메모, 최근 공시 제목 */
+export interface ReportSummary {
+  기업: string;
+  기준일: string | null;
+  핵심_지표: { 이름: string; 숫자_id?: string; 값?: string; 메모?: string }[];
+  칸: {
+    제목: string;
+    항목: { 이름: string; 숫자_id?: string; 값?: string; 메모?: string }[];
+    차트: ChartSummary[];
+    메모: string[];
+  }[];
+  최근_공시: { 날짜: string; 제목: string; 분류: string }[];
+  빠진_정보: string[];
+}
+
+export function summarizeReport(report: CompanyReport | undefined): ReportSummary | null {
+  if (!report) return null;
+  const fact = (f: ReportFact) => ({
+    이름: f.label,
+    ...(f.figureId ? { 숫자_id: f.figureId } : {}),
+    ...(f.text ? { 값: f.text } : {}),
+    ...(f.note ? { 메모: f.note } : {}),
+  });
+  return {
+    기업: `${report.company.name} (${report.company.stockCode}, ${report.company.sector?.name ?? "미분류"})`,
+    기준일: report.priceDate,
+    핵심_지표: report.highlights.map(fact),
+    칸: report.sections.map((s) => ({
+      제목: s.title,
+      항목: s.facts.map(fact),
+      차트: summarizeCharts(s.charts),
+      메모: s.notes,
+    })),
+    최근_공시: report.disclosures
+      .slice(0, 10)
+      .map((d) => ({ 날짜: d.date, 제목: d.title, 분류: d.tag })),
+    빠진_정보: report.notes,
+  };
+}
+
 export function buildExplainPrompt(input: {
   question: string;
   figures: FigureSummary[];
   charts: ChartSummary[];
   newsClues: NewsClueInput[];
+  report?: ReportSummary | null;
 }): unknown {
   const data = {
     question: input.question,
     숫자_목록: input.figures,
     차트_목록: input.charts,
+    // 공시 제목도 외부 텍스트 — 데이터로만 다룬다
+    투자_리포트: input.report ?? null,
     // 외부 텍스트(뉴스 요지)는 "데이터" 구역에만 넣는다 — 그 안의 지시문은 따르지 않는다(§11.5).
     뉴스_단서: input.newsClues.map((n) => ({
       news_id: n.newsId,

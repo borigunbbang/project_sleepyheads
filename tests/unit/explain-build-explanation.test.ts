@@ -268,11 +268,12 @@ describe("buildExplanation", () => {
     );
   });
 
-  it("결론+투자 포인트 합계가 320자를 넘으면 뒤쪽 투자 포인트부터 폐기한다", () => {
+  it("결론+투자 포인트 합계가 mainMaxChars를 넘으면 뒤쪽 투자 포인트부터 폐기한다", () => {
     const longText = (n: number) => `문장 {{f1}} ${"가".repeat(n)}`;
-    const insights = [1, 2, 3, 4].map((i) => ({
+    const insights = Array.from({ length: 12 }, (_, k) => k + 1).map((i) => ({
       kind: "watch" as const,
-      text: longText(70 - i), // 각각 80자 이내지만 넷 다 더하면 320자를 넘도록
+      // 각각 insightMaxChars 이내지만 열두 개를 다 더하면 mainMaxChars를 넘도록 (개수 상한도 함께)
+      text: longText(EXPLANATION_LIMITS.insightMaxChars - 15 - i),
       figure_ids: ["f1"],
       news_ids: [],
       chart_ref: null,
@@ -294,13 +295,13 @@ describe("buildExplanation", () => {
     expect(result.insights.length).toBeLessThan(insights.length);
   });
 
-  it("80자를 넘는 투자 포인트는 폐기된다", () => {
+  it("insightMaxChars를 넘는 투자 포인트는 폐기된다", () => {
     const result = buildExplanation({
       ai: baseAi({
         insights: [
           {
             kind: "watch",
-            text: `{{f1}} ${"가".repeat(90)}`,
+            text: `{{f1}} ${"가".repeat(EXPLANATION_LIMITS.insightMaxChars + 10)}`,
             figure_ids: ["f1"],
             news_ids: [],
             chart_ref: null,

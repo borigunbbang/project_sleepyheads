@@ -71,7 +71,7 @@ export function buildExplanation(input: BuildExplanationInput): Explanation {
     ? input.ai.news_clues.map((n) => n.news_id).filter((id) => newsClueById.has(id))
     : [];
 
-  // 결론은 앞에서부터 최대 2문장, 합계가 한 화면 분량(320자)을 넘지 않게 (§11.5, EXPLANATION_LIMITS)
+  // 결론은 앞에서부터 최대 conclusionSentences문장, 합계가 mainMaxChars를 넘지 않게 (§11.5, EXPLANATION_LIMITS)
   const conclusion: string[] = [];
   let conclusionChars = 0;
   let conclusionUsesNews = false;
@@ -105,6 +105,7 @@ export function buildExplanation(input: BuildExplanationInput): Explanation {
 
     insights.push({
       kind: raw.kind,
+      theme: raw.theme ?? "general",
       text,
       figureIds,
       newsIds,
@@ -113,7 +114,7 @@ export function buildExplanation(input: BuildExplanationInput): Explanation {
     });
   }
 
-  // 분량 검사(§11.5): 결론+투자 포인트 합계 320자 초과 → 뒤쪽 투자 포인트부터 폐기.
+  // 분량 검사(§11.5): 결론+투자 포인트 합계가 mainMaxChars를 넘으면 뒤쪽 투자 포인트부터 폐기.
   let totalChars = conclusionChars;
   const keptInsights: Insight[] = [];
   for (const insight of insights) {

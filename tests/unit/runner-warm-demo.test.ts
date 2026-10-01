@@ -15,6 +15,9 @@ vi.mock("@/lib/runner/company-financials", () => ({ ensureCompanyFinancials: fin
 vi.mock("@/lib/price/daily", () => ({ loadPrices: pricesMock }));
 vi.mock("@/lib/sector/peers", () => ({ pickPeers: peersMock }));
 vi.mock("@/lib/companies/profile", () => ({ ensureCompanyProfile: profileMock }));
+// 투자 리포트 캐시 채우기 — 여기서는 부르는지만 본다 (조립은 report-build.test.ts)
+const { reportMock } = vi.hoisted(() => ({ reportMock: vi.fn() }));
+vi.mock("@/lib/report/build", () => ({ buildCompanyReport: reportMock }));
 vi.mock("@/lib/llm/client", () => {
   throw new Error("warm-demo는 AI를 부르지 않는다");
 });
@@ -53,7 +56,8 @@ function peer(stockCode: string, name: string) {
 }
 
 beforeEach(() => {
-  for (const m of [financialsMock, pricesMock, peersMock, profileMock]) m.mockReset();
+  for (const m of [financialsMock, pricesMock, peersMock, profileMock, reportMock]) m.mockReset();
+  reportMock.mockResolvedValue({ externalCalls: 0 });
   financialsMock.mockResolvedValue({ externalCalls: 14, quartersWithoutReport: new Set() });
   pricesMock.mockResolvedValue({
     baseDate: "2026-09-30",
@@ -184,5 +188,28 @@ describe("warmDemoData", () => {
     expect(result.priceDate).toBeNull();
     expect(result.companies[0]).toMatchObject({ status: "받음" });
     expect(result.companies[0].error).toContain("주가를 받지 못함");
+  });
+});
+
+describe("warmDemoData — 투자 리포트 캐시", () => {
+  it("기업마다 리포트를 한 번 만들어 캐시를 채운다 (경쟁사 = 나머지 시연 기업, AI 0)", async () => {
+    reportMock.mockResolvedValue({ externalCalls: 20 });
+    financialsMock.mockResolvedValue({ externalCalls: 0, quartersWithoutReport: new Set() });
+    const result = await warmDemoData(DEMO_TARGETS, { client: db().client, now: NOW });
+    expect(reportMock).toHaveBeenCalledTimes(4);
+    expect(reportMock.mock.calls[0][0]).toMatchObject({ name: "SK하이닉스" });
+    expect(reportMock.mock.calls[0][1].peers.map((p: { name: string }) => p.name)).toEqual([
+      "삼성전자",
+      "한미반도체",
+      "DB하이텍",
+    ]);
+    expect(result.companies[0]).toMatchObject({ status: "받음", reportCalls: 20 });
+  });
+
+  it("리포트가 실패해도 재무·주가 결과는 그대로, 사유만 적는다", async () => {
+    reportMock.mockRejectedValue(new Error("주가 API 오류"));
+    const result = await warmDemoData([DEMO_TARGETS[1]], { client: db().client, now: NOW });
+    expect(result.companies[0]).toMatchObject({ status: "받음" });
+    expect(result.companies[0].error).toContain("투자 리포트를 미리 만들지 못함");
   });
 });

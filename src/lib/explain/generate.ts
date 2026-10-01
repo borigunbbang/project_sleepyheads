@@ -2,12 +2,13 @@
 // 실패해도 절대 던지지 않는다 — 호출부(WU-110 실행 흐름)는 차트·표는 그대로 보여주고
 // "설명 생성 실패"만 표시한다(§11.5, F-N7). 실패 처리는 이 함수 안에서 끝낸다.
 import "server-only";
-import type { Explanation, NewsClue, ResultObject } from "@/contracts";
+import type { Chart, Explanation, Figure, NewsClue, ResultObject } from "@/contracts";
 import { llmCall, type LlmUsage } from "@/lib/llm/client";
 import { AI_EXPLANATION_JSON_SCHEMA, aiExplanationSchema } from "./ai-explanation";
 import { buildExplanation, failedExplanation } from "./build-explanation";
 import { chooseExplainModel } from "./model";
-import { buildExplainPrompt, summarizeCharts, summarizeFigures } from "./prompt";
+import { isReportFigureId } from "@/lib/report/ids";
+import { buildExplainPrompt, summarizeCharts, summarizeFigures, summarizeReport } from "./prompt";
 
 export interface GenerateExplanationInput {
   question: string;
@@ -54,8 +55,9 @@ export async function generateExplanationWithUsage(
       analysisId: input.analysisId ?? null,
       input: buildExplainPrompt({
         question: input.question,
-        figures: summarizeFigures(input.result.figures),
-        charts: summarizeCharts(input.result.charts),
+        figures: summarizeFigures(explainFigures(input.result)),
+        charts: summarizeCharts(allCharts(input.result)),
+        report: summarizeReport(input.result.report),
         newsClues: newsClues.map((n) => ({
           newsId: n.newsId,
           title: n.title,
@@ -75,7 +77,7 @@ export async function generateExplanationWithUsage(
     const explanation = buildExplanation({
       ai: parsed.data,
       figures: input.result.figures,
-      charts: input.result.charts,
+      charts: allCharts(input.result),
       newsClues,
       hasNews: newsClues.length > 0,
       mixedScope: input.mixedScope,
@@ -88,4 +90,21 @@ export async function generateExplanationWithUsage(
     console.error(`[explain:${input.analysisId ?? "unknown"}] 설명 작성 실패`, err);
     return { explanation: failedExplanation(), llmCostUsd };
   }
+}
+
+/** 질문 차트 + 투자 리포트 차트 ("해당 차트 보기"가 리포트 차트로도 간다) */
+function allCharts(result: ResultObject): Chart[] {
+  return [...result.charts, ...(result.report?.sections.flatMap((sec) => sec.charts) ?? [])];
+}
+
+/**
+ * AI에 보내는 숫자: 질문 결과의 숫자 전부 + 리포트의 핵심 숫자만 — 주간 종가·거래량 같은 차트 점(100개 넘음)은
+ * 해석에 필요 없고 토큰만 든다. 검사(buildExplanation)는 결과의 숫자 전부로 한다
+ */
+function explainFigures(result: ResultObject): Record<string, Figure> {
+  if (!result.report) return result.figures;
+  const key = new Set(result.report.keyFigureIds);
+  return Object.fromEntries(
+    Object.entries(result.figures).filter(([id]) => !isReportFigureId(id) || key.has(id)),
+  );
 }

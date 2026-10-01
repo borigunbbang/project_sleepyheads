@@ -9,6 +9,7 @@ import { addQuarters, latestAvailableQuarter } from "@/lib/ask/quarter";
 import { ensureCompanyProfile } from "@/lib/companies/profile";
 import { COMPANY_SELECT_COLUMNS, toCompanyRef, type CompanyRow } from "@/lib/companies/row";
 import { loadPrices } from "@/lib/price/daily";
+import { buildCompanyReport } from "@/lib/report/build";
 import { pickPeers } from "@/lib/sector/peers";
 import { ensureCompanyFinancials } from "./company-financials";
 
@@ -51,6 +52,8 @@ export interface WarmCompanyResult {
   period?: { from: Quarter; to: Quarter };
   /** 이번에 부른 전자공시 호출 수 (기업개황 포함) */
   dartCalls: number;
+  /** 투자 리포트 캐시를 채우느라 부른 외부 호출 수 */
+  reportCalls?: number;
   /** 전자공시에 보고서가 없는(013) 분기 */
   quartersWithoutReport: Quarter[];
   /** 기준일 종가 (원) — 가격이 없으면(거래정지 등) 없음 */
@@ -150,6 +153,24 @@ export async function warmDemoData(
         expected,
         same: false,
       };
+    }
+  }
+
+  // 투자 리포트 캐시(1년 시세·사업보고서 계정·최대주주·배당·사업연도 말 주가)도 미리 — 시연 질문마다 리포트가 붙는다
+  for (const c of companies) {
+    const company = refs.get(c.stockCode);
+    if (!company) continue;
+    try {
+      const others = [...refs.values()].filter((r) => r.stockCode !== company.stockCode);
+      const built = await buildCompanyReport(company, {
+        client,
+        now: () => now,
+        peers: others.slice(0, 3),
+      });
+      c.reportCalls = built.externalCalls;
+      if (built.externalCalls > 0 && c.status === "이미 있음") c.status = "받음";
+    } catch (err) {
+      c.error = `투자 리포트를 미리 만들지 못함: ${err instanceof Error ? err.message : String(err)}`;
     }
   }
 

@@ -116,3 +116,49 @@ describe("다시 적용해도 같다 (추가만)", () => {
     expect(company.rows[0].profile_failed_at).not.toBeNull();
   });
 });
+
+describe("투자 리포트 캐시 3개 (20261001210000)", () => {
+  const REPORT = "20261001210000_report_caches.sql";
+
+  it("1년 시세·보고서별 계정·최대주주/배당을 jsonb로 담고, 같은 키는 한 행", async () => {
+    await db.exec(`
+      insert into companies (corp_code, stock_code, corp_name) values ('99999980', '999980', '리포트기업')
+        on conflict do nothing;
+      insert into stock_price_history (stock_code, days) values ('999980', '[{"date":"2026-09-30","close":1000}]')
+        on conflict (stock_code) do update set days = excluded.days;
+      insert into report_extras (corp_code, bsns_year, reprt_code, fs_div, rcept_no, values)
+        values ('99999980', 2025, '11011', 'CFS', 'r1', '{"revenue":"100","eps":"62044"}');
+      insert into report_extras (corp_code, bsns_year, reprt_code, fs_div, rcept_no, values)
+        values ('99999980', 2026, '11014', null, null, '{}');
+      insert into company_facts (corp_code, kind, bsns_year, reprt_code, data)
+        values ('99999980', 'shareholder', 2026, '11012', '{"name":"A","ratio":20.5}');
+    `);
+    const { rows } = await db.query<{ v: string }>(
+      "select values->>'eps' v from report_extras where corp_code = '99999980' and bsns_year = 2025",
+    );
+    expect(rows[0].v).toBe("62044");
+    await expect(
+      db.exec(
+        "insert into company_facts (corp_code, kind, bsns_year, reprt_code) values ('99999980', 'unknown', 2026, '11012')",
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("회원·비로그인은 읽지 못한다 (서버만)", async () => {
+    for (const table of ["stock_price_history", "report_extras", "company_facts"]) {
+      const rows = await db.transaction(async (tx) => {
+        await tx.exec("set local role anon");
+        return (await tx.query(`select * from ${table}`)).rows;
+      });
+      expect(rows, table).toEqual([]);
+    }
+  });
+
+  it("다시 적용해도 같다", async () => {
+    await db.exec(readFileSync(join(ROOT, "migrations", REPORT), "utf8"));
+    const { rows } = await db.query<{ n: number }>(
+      "select count(*)::int n from report_extras where corp_code = '99999980'",
+    );
+    expect(rows[0].n).toBe(2);
+  });
+});

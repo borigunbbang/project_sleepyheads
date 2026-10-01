@@ -368,7 +368,10 @@ describe("build_result 실행 기록", () => {
     expect(outcome.outputSummary).toContain(
       "주가 결합: 재무 1행 + 주가 2행 → 1행, 제외 1행(우선주 1), 기준일 2024-12-30, 주가 호출 1건",
     );
-    expect(outcome.usage).toEqual({ externalCalls: 1, llmCostUsd: 0 });
+    // 외부 호출 = 주가 결합 1건 + 투자 리포트가 받은 것 (리포트 요약 줄에 따로 센다, Phase 5 후속). AI 0
+    expect(outcome.outputSummary).toMatch(/투자 리포트: .*외부 호출 (\d+)건/);
+    const reportCalls = Number(/투자 리포트: .*외부 호출 (\d+)건/.exec(outcome.outputSummary)![1]);
+    expect(outcome.usage).toEqual({ externalCalls: 1 + reportCalls, llmCostUsd: 0 });
   });
 });
 
