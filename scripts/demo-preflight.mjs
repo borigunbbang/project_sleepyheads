@@ -28,8 +28,11 @@ if (!/^https?:\/\//.test(SITE)) {
 const LIMITS = {
   /** 기업 목록 동기화(매일 03시 KST, ±59분)가 이보다 오래 안 돌았으면 ⚠️ */
   syncMaxHours: 30,
-  /** 동기화가 돌았다고 볼 최소 갱신 기업 수 (상장사 약 4,000곳을 한 번에 upsert) */
-  syncMinCompanies: 1_000,
+  /**
+   * 동기화가 돌았다고 볼 최소 갱신 기업 수 (상장사 약 4,000곳을 한 번에 upsert). 기업개황 미리 채우기 cron도 하루 최대
+   * 1,000곳(PREFILL_BATCH)의 updated_at을 바꾸므로 그보다 크게 — 동기화가 멈춰도 미리 채우기만으로 ✅가 되지 않게 (Phase 5 통합)
+   */
+  syncMinCompanies: 2_000,
   /** 오늘 AI 비용이 이보다 크면 ⚠️ (키 3개 각 약 5천 원 — 하루 $1이면 며칠 못 간다) */
   llmDailyWarnUsd: 1,
   /** OpenDART 하루 한도 20,000회의 80% */

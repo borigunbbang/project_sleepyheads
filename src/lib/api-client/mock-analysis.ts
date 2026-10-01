@@ -9,9 +9,8 @@
 //   … 서버 오류           → 예상 못 한 서버 오류(500, 요청 ID 안내)
 //   SK하이닉스 … 뉴스      → 최근 실적 + 뉴스 단서 (WU-305)
 //   SK하이닉스 … PER·PBR·시가총액 → 주가 지표 결과 (WU-502 화면: 기준일·적자·자본잠식·결합 경고)
-import { earliestQuarterLabel } from "@/components/ask/errorMessages";
 import type { Analysis, CompanyRef } from "@/contracts";
-import { EARLIEST_QUARTER, parseQuarter } from "@/lib/ask/quarter";
+import { EARLIEST_QUARTER, EARLIEST_QUARTER_LABEL, parseQuarter } from "@/lib/ask/quarter";
 import { MOCK_COMPANIES, findMockCompany } from "../../../tests/fixtures/mock/companies";
 import {
   MIXED_QUESTION_CAVEAT,
@@ -159,7 +158,7 @@ export async function mockAsk(question: string): Promise<WithRemaining<AskRespon
   } else if (asksBeforeEarliestYear(question)) {
     throw new ApiRequestError(
       "OUT_OF_RANGE",
-      `조회할 수 있는 기간은 ${earliestQuarterLabel()}부터 최신 보고서까지입니다.`,
+      `조회할 수 있는 기간은 ${EARLIEST_QUARTER_LABEL}부터 최신 보고서까지입니다.`,
       422,
     );
   } else if (/만족도|연봉|직원 수/.test(question)) {

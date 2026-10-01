@@ -41,7 +41,7 @@
 |---|---|
 | 화면·서버 | **Next.js 16** (App Router, `src/proxy.ts`), React 19, TypeScript, Tailwind CSS, Recharts |
 | DB·로그인 | **Supabase** (Postgres + RLS, 구글 로그인) — 프로젝트 `sleepyhead` 하나 |
-| 배포 | **Vercel** (Hobby, Cron 2개) |
+| 배포 | **Vercel** (Hobby, Cron 3개) |
 | AI | **OpenAI** Responses API + Structured Outputs — 질문 해석·뉴스 요지 `gpt-6-luna`, 분석 글 `gpt-6-sol` |
 | 테스트 | Vitest(단위·정확도·DB·회귀), Playwright(화면 1280px·375px), GitHub Actions (Linux·Windows) |
 
@@ -151,7 +151,8 @@ Supabase 무료 플랜은 **7일 동안 활동이 적으면 프로젝트를 일�
 3. 확인: 배포 주소 첫 화면 아래 SK하이닉스 예시가 보이고, 로컬에서 `pnpm check:keys`의 Supabase 2줄이 ✅
 
 4. **한 번에 점검** (읽기만): `node scripts/demo-preflight.mjs` — 배포 첫 화면·비로그인 예시·키 유무·오늘 AI 비용과 전자공시·주가 호출 수·1시간 넘게 멈춘 분석·크론 3개의 마지막 실행을 ✅/⚠️로 보여 줍니다(키 값은 출력하지 않음, ⚠️가 있으면 종료 코드 1). 운영 DB 항목은 `.env.local`에 운영 Supabase 주소·서버 키가 있는 PC에서만 나옵니다. 키를 실제로 불러 보려면 `--keys`(키마다 호출 1회 — AI 토큰을 조금 쓰니 시연 당일 1번만). 판정 기준·⚠️일 때 할 일: [OPS_RUNBOOK](DevelopDoc/OPS_RUNBOOK.md) §2
-5. **DB 백업 1회** (무료 플랜은 자동 백업 없음): `bash scripts/db-backup.sh` — Docker Desktop·Supabase 로그인 필요, 저장소 밖 폴더에 저장. 복구 순서: OPS_RUNBOOK §1
+5. **시연 데이터 미리 받기** (AI 0): `node scripts/warm-demo.mjs` — 시연 기업(DEMO_SCRIPT §2)의 보고서·주가를 미리 받아 첫 조회 지연을 없앱니다. 두 번째부터 "이미 있음"이면 정상, ⚠️ 경쟁사 다름이면 DEMO_SCRIPT §2를 고칩니다. 팀 DB에 캐시를 채우는 쓰기라 시연 전날·30분 전에 한 번씩. 그 뒤 시연 질문을 **시연 계정으로 한 번씩 미리** 해 두면 시연 때 분석 글이 재사용돼 빨라집니다(질문당 AI 2회 — 리허설과 같이)
+6. **DB 백업 1회** (무료 플랜은 자동 백업 없음): `bash scripts/db-backup.sh` — Docker Desktop·Supabase 로그인 필요, 저장소 밖 폴더에 저장. 복구 순서: OPS_RUNBOOK §1
 
 시연 전날부터 끝날 때까지 **DB 구조 마이그레이션은 적용하지 않습니다.**
 
