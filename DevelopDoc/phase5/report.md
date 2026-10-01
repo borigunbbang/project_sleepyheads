@@ -31,7 +31,7 @@
 - `src/components/result/ResultView.tsx`(잠김) — 리포트 핵심 지표·칸을 끼움. `ExplanationPanel`·`chartData.ts`(현준) — 관점 묶음, 거래량 축 "만 주".
 - PRD v0.7.0 F-V11 개정(결론은 첫 화면, 투자 포인트는 이어서), TECH v0.7.0 §12.6·§15.4, API_SPEC v0.4.0.
 
-## 마이그레이션
+## 마이그레이션 — **운영 적용 완료 (2026-10-01, 대시보드 SQL Editor: 표 3개 있음·비로그인 키 0행, 질문당 AI 상한 0.05 확인)**
 `20261001210000_report_caches.sql` — `stock_price_history`·`report_extras`·`company_facts` (추가만, RLS 켬·정책 없음). **적용 전에도 리포트는 만들어진다**(캐시 없이 매번 받음 — 첫 조회와 같은 속도). 시연 전날 전에 적용.
 
 ## 비용·시간
