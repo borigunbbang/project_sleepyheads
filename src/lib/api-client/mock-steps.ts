@@ -9,7 +9,7 @@ import { buildStoredPlan, toPlanView } from "@/lib/runner/steps/plan";
 import { ApiRequestError } from "./errors";
 import { mockAsk } from "./mock-analysis";
 import { remainingQuestions } from "./mock-session";
-import { mockDelay, readMockState, updateMockState } from "./mock-store";
+import { mockDelay, readMockState, sessionFlag, updateMockState } from "./mock-store";
 import type { AskResponse, StepResponse, WithRemaining } from "./types";
 
 const HIDDEN_KEY = "sleepyheads.mock.steps";
@@ -101,15 +101,6 @@ export async function mockApprove(id: string): Promise<WithRemaining<{ status: "
   return { data: { status: "queued" }, questionsRemaining: remainingQuestions() };
 }
 
-function staleAfterCancel(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.sessionStorage.getItem(MOCK_STALE_AFTER_CANCEL_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
 export async function mockCancel(
   id: string,
 ): Promise<WithRemaining<{ status: "canceled"; stopReason: "USER_CANCELED" }>> {
@@ -120,7 +111,7 @@ export async function mockCancel(
   if (!cancelable.includes(analysis.status)) {
     throw new ApiRequestError("INVALID_STATE", "이미 끝난 분석은 취소할 수 없습니다.", 409);
   }
-  if (!staleAfterCancel())
+  if (!sessionFlag(MOCK_STALE_AFTER_CANCEL_KEY))
     updateMockState((s) => {
       const a = s.analyses[id];
       a.status = "canceled";

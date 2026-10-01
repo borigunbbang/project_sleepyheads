@@ -38,3 +38,13 @@ export function updateMockState(change: (state: MockState) => void): MockState {
 export function mockDelay(ms = 300): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/** e2e·수동 확인용 흉내 스위치: sessionStorage에 그 키가 "1"이면 켜짐 */
+export function sessionFlag(key: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}

@@ -183,16 +183,29 @@ export function AnalysisScreen({ projectId }: { projectId: string }) {
       }
     }
     setRun(null);
-    if (canceled) {
-      const { status, stopReason } = canceled;
-      setState((s) =>
-        s.kind === "ready" ? { kind: "ready", analysis: { ...s.analysis, status, stopReason } } : s,
-      );
+    if (!canceled) {
+      apply(await load(setRun));
+      return;
     }
-    const next = await load(setRun);
-    // 취소를 마친 뒤 받은 응답이 아직 취소 전 상태(계획 카드·실행 중)면 취소 결과를 그대로 둔다
-    if (canceled && next?.kind === "ready" && !isFinished(next.analysis.status)) return;
-    apply(next);
+    const { status, stopReason } = canceled;
+    setState((s) =>
+      s.kind === "ready" ? { kind: "ready", analysis: { ...s.analysis, status, stopReason } } : s,
+    );
+    // 취소된 분석은 단계를 다시 돌리지 않는다 — load() 대신 한 번만 읽는다.
+    // 받은 응답이 아직 취소 전 상태(계획 카드·실행 중)여도 취소 결과로 보여 준다
+    const token = ++runToken.current;
+    try {
+      const { data } = await getAnalysis(analysisId);
+      if (token !== runToken.current) return;
+      setState({
+        kind: "ready",
+        analysis: isFinished(data.status) ? data : { ...data, status, stopReason },
+      });
+    } catch (error) {
+      if (token !== runToken.current) return;
+      // 이미 화면에 분석이 있으면 취소 결과를 그대로 두고, 없을 때(불러오는 중 취소)만 오류를 보여 준다
+      setState((s) => (s.kind === "ready" ? s : handleError(error)));
+    }
   }
 
   return (
